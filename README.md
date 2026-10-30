@@ -1,125 +1,141 @@
 # Uptrack
 
-Generic upstream patch tracker for lore + patchwork. It is configured for Qualcomm display/PHY by default, and can be extended to any subsystem by editing `config.toml`.
+A generic upstream patch tracker for monitoring mailing-list and patchwork activity across multiple Linux subsystems.
 
-## Files
+Uptrack polls configured lore Atom feeds and Patchwork projects, stores normalized patch metadata in local state, and provides commands to list, inspect, open, and apply patches.
 
-- `config.toml` - feeds, patchwork projects, keywords, subsystem tags, notify, b4 options
-- `uptrack.py` - main CLI
-- `tracker.py` - compatibility wrapper (execs `uptrack.py`)
-- `install.sh` - local install helper
+## Features
 
-## Install
+- Polls both lore Atom feeds and Patchwork REST API
+- Deduplicates by message-id (`msgid`)
+- Tracks patch state (`new`, `seen`, `ignored`)
+- Supports subsystem tagging and filtering (`--subsystem`)
+- Paged list output (via `less`) with optional interactive selection
+- Opens full thread content (cover letter + patches) in a cleaned, readable view
+- Applies patches via `b4 am`
+
+## Requirements
+
+- Python 3.10+
+- `curl`
+- `b4` (required for `am` and `open`)
+- Optional: `fzf` for interactive list selection
+- Optional: `notify-send` for desktop notifications
+
+## Installation
 
 ```bash
-cd /local/mnt/workspace/naala/upstream/upstream-tracker
+git clone <your-repo-url>
+cd uptrack
 ./install.sh
 ```
 
-Install creates:
+This installs:
 
-- `~/.local/bin/uptrack` -> `uptrack.py`
-- `~/.local/bin/qcom-tracker` -> `uptrack.py` (legacy alias)
+- `~/.local/bin/uptrack` (primary command)
+- `~/.local/bin/qcom-tracker` (legacy alias)
 
-## Usage
+If needed, add `~/.local/bin` to your `PATH`.
+
+## Quick Start
 
 ```bash
-uptrack --help
 uptrack fetch
 uptrack list
-uptrack list --interactive
-uptrack --subsystem display list
-uptrack --subsystem phy list
 uptrack show 1
-uptrack am 1
 uptrack open 1
-uptrack open '<20261030064149.14736-3-kaipeng94@gmail.com>'
-uptrack open 'https://lore.kernel.org/all/20261030064149.14736-3-kaipeng94@gmail.com/'
-uptrack mark 1 seen
-uptrack mark 1 ignored
-uptrack watch --interval 300
-uptrack projects
-uptrack projects --config-only
+uptrack am 1
 ```
 
 ## Commands
 
-- `fetch` - poll lore Atom feeds + patchwork API, dedupe by `msgid`, save state
-- `list` - colorized list, paged via `less` by default
-- `list --interactive` - interactive selection (`fzf` if available, else numbered prompt)
-- `show <id>` - patch metadata + lore thread URL
-- `am <id>` - run `b4 am <msgid>` with options from `[b4].am_opts`
-- `open <id-or-link>` - open full thread content (cover letter + patches), lore-like cleaned view
-- `watch` - continuous polling loop with optional desktop notifications
-- `projects` - list patchwork projects (API, or config-only)
-- `mark <id> seen|ignored` - update local state labels
+- `fetch` - Poll sources and update local state
+- `list` - Show paged patch list
+- `list --interactive` - Interactive selection mode
+- `show <id>` - Show patch metadata
+- `open <id-or-link>` - Open full thread content in lore-style cleaned view
+- `am <id>` - Run `b4 am <msgid>`
+- `watch --interval <seconds>` - Continuous polling loop
+- `projects` - List Patchwork projects from API
+- `projects --config-only` - List configured projects only
+- `mark <id> seen|ignored` - Update patch label/state
 
-`<id>` can be:
+## ID Resolution
 
-- exact message-id from state
-- numeric index from `list`
-- unique substring in msgid/title
+For commands that take an id, you can use:
+
+- list index (for example `1`)
+- exact message-id (for example `<abc@host>`)
+- unique title/msgid substring
 - lore URL (for `open`)
 
-## Subsystem Scaling
+## Subsystem Filtering
 
-Use `subsystem = "..."` on each feed/project in `config.toml`.
+Use `--subsystem` before the subcommand:
 
-Example:
+```bash
+uptrack --subsystem display list
+uptrack --subsystem phy show 1
+uptrack --subsystem net open 3
+```
+
+Index-based ids are resolved within the filtered subsystem list.
+
+## Configuration
+
+Default config file: `config.toml`
+
+Key sections:
+
+- `[general]` - state/cache paths, color, notify, default subsystem
+- `[sources.lore]` - feed list with labels and optional `subsystem`
+- `[sources.patchwork]` - project list with optional `subsystem`, keyword filter
+- `[notify]` - notification command settings
+- `[b4]` - `b4 am` options
+
+### Example subsystem tagging
 
 ```toml
 [general]
-default_subsystem = "display"
+default_subsystem = "default"
 
 [sources.lore]
 feeds = [
   { url = "https://lore.kernel.org/all/?q=drm%2Fmsm&x=A", label = "drm/msm", subsystem = "display" },
-  { url = "https://lore.kernel.org/all/?q=audio+qcom&x=A", label = "qcom-audio", subsystem = "audio" },
+  { url = "https://lore.kernel.org/all/?q=phy%2Fqualcomm&x=A", label = "phy/qualcomm", subsystem = "phy" },
 ]
 
 [sources.patchwork]
 projects = [
   { id = 21, name = "dri-devel", subsystem = "display" },
-  { id = 107, name = "linux-arm-msm", subsystem = "display" },
-  { id = 999, name = "alsa-devel", subsystem = "audio" },
+  { id = 456, name = "linux-phy", subsystem = "phy" },
 ]
 ```
 
-Then filter views/actions with:
+If `subsystem` is omitted on a feed/project, Uptrack uses `[general].default_subsystem`.
 
-- `uptrack --subsystem display list`
-- `uptrack --subsystem audio list`
-- `uptrack --subsystem audio show 1`
+## State File
 
-## State
-
-Default state file:
+Default state path:
 
 - `~/.local/share/uptrack/state.json`
 
-Entry shape:
+Each entry includes:
 
-```json
-{
-  "<msgid>": {
-    "title": "...",
-    "date": "...",
-    "url": "...",
-    "source": "lore|patchwork",
-    "subsystem": "display",
-    "seen": false,
-    "label": "new"
-  }
-}
-```
+- `title`
+- `date`
+- `url`
+- `source` (`lore` or `patchwork`)
+- `subsystem`
+- `seen`
+- `label`
 
 ## Notes
 
-- Python 3.10 compatible (`tomllib` -> `tomli` -> internal fallback parser)
-- `notify-send` optional (`[general].notify`, `[notify].command`)
-- `b4` required for `am` and `open`
+- Python TOML loading order: `tomllib` -> `tomli` -> built-in minimal fallback parser
+- `open` uses `b4 mbox` and renders a cleaned thread view
+- `watch` can send notifications when new patches are found
 
-## Copyright
+## License
 
-Copyright (c) 2026 Uptrack contributors.
-SPDX-License-Identifier: MIT
+MIT (SPDX: `MIT`)
