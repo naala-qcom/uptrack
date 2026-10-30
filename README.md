@@ -33,7 +33,6 @@ cd uptrack
 This installs:
 
 - `~/.local/bin/uptrack` (primary command)
-- `~/.local/bin/qcom-tracker` (legacy alias)
 
 If needed, add `~/.local/bin` to your `PATH`.
 

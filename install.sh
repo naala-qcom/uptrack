@@ -5,7 +5,6 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TARGET_BIN="${HOME}/.local/bin/uptrack"
-LEGACY_BIN="${HOME}/.local/bin/qcom-tracker"
 STATE_DIR="${HOME}/.local/share/uptrack"
 CACHE_DIR="${HOME}/.cache/uptrack"
 
@@ -13,10 +12,8 @@ mkdir -p "${HOME}/.local/bin" "${STATE_DIR}" "${CACHE_DIR}"
 chmod +x "${ROOT_DIR}/uptrack.py" "${ROOT_DIR}/tracker.py"
 
 ln -sf "${ROOT_DIR}/uptrack.py" "${TARGET_BIN}"
-ln -sf "${ROOT_DIR}/uptrack.py" "${LEGACY_BIN}"
 
 echo "Installed launcher: ${TARGET_BIN} -> ${ROOT_DIR}/uptrack.py"
-echo "Legacy alias kept: ${LEGACY_BIN} -> ${ROOT_DIR}/uptrack.py"
 
 if ! command -v python3 >/dev/null 2>&1; then
   echo "[error] python3 not found" >&2
