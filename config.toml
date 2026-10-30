@@ -1,0 +1,49 @@
+# Copyright (c) 2026 Uptrack contributors
+# SPDX-License-Identifier: MIT
+# Uptrack Configuration (generic upstream patch tracker)
+
+[general]
+state_file   = "~/.local/share/uptrack/state.json"
+cache_dir    = "~/.cache/uptrack"
+notify       = true          # desktop notify-send notifications
+color        = true          # colorized terminal output
+default_subsystem = "display"
+
+[sources.lore]
+enabled  = true
+# Feeds polled — lore returns Atom for ?q=…&x=A
+feeds = [
+    # Primary MSM DRM list
+    { url = "https://lore.kernel.org/all/?q=drm%2Fmsm&x=A",          label = "drm/msm", subsystem = "display" },
+    { url = "https://lore.kernel.org/all/?q=phy%2Fqualcomm&x=A",     label = "phy/qualcomm", subsystem = "phy" },
+    { url = "https://lore.kernel.org/all/?q=qualcomm+display&x=A",   label = "qcom-display", subsystem = "display" },
+    { url = "https://lore.kernel.org/all/?q=drivers%2Fgpu%2Fdrm%2Fmsm&x=A", label = "gpu/drm/msm", subsystem = "display" },
+    { url = "https://lore.kernel.org/all/?q=msm+dp&x=A",             label = "msm-dp", subsystem = "display" },
+    { url = "https://lore.kernel.org/all/?q=msm+dsi&x=A",            label = "msm-dsi", subsystem = "display" },
+    { url = "https://lore.kernel.org/all/?q=msm+hdmi&x=A",           label = "msm-hdmi", subsystem = "display" },
+    { url = "https://lore.kernel.org/all/?q=qcom+mdss&x=A",          label = "qcom-mdss", subsystem = "display" },
+]
+
+[sources.patchwork]
+enabled  = true
+base_url = "https://patchwork.kernel.org/api"
+# Projects to monitor — run `uptrack projects` to list all
+projects = [
+    { id = 21,  name = "dri-devel", subsystem = "display" },
+    { id = 107, name = "linux-arm-msm", subsystem = "display" },
+    { id = 456, name = "linux-phy", subsystem = "phy" },
+]
+# Keyword filters applied to patch titles fetched from patchwork
+keywords = [
+    "drm/msm", "msm/dp", "msm/dsi", "msm/hdmi", "msm/disp",
+    "qcom display", "qualcomm display", "mdss", "dpu", "gpu/drm/msm",
+    "phy/qualcomm", "qmp phy", "qusb2",
+]
+
+[notify]
+command = "notify-send"     # change to "" to disable
+urgency = "normal"          # low | normal | critical
+
+[b4]
+# How b4 am fetches patches from lore
+am_opts = "--outdir /tmp/uptrack-patches"
